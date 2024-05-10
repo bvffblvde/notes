@@ -1,18 +1,21 @@
-import React, {useEffect, useState} from 'react';
-import {useDispatch, useSelector} from 'react-redux';
-import {RootState} from '../app/store';
-import {fetchNotes, Note} from '../features/notes/notesSlice';
+import React, { useEffect, useState, useRef } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from '../app/store';
+import { fetchNotes, Note } from '../features/notes/notesSlice';
 import NoteList from '../components/NoteList';
-import {Backdrop, Box, Button, CircularProgress, Typography, Select, MenuItem, Grid} from '@mui/material';
-import {Add} from '@mui/icons-material';
-import {Link} from 'react-router-dom';
+import { Backdrop, Box, Button, CircularProgress, Typography, Select, MenuItem, Grid } from '@mui/material';
+import { Add } from '@mui/icons-material';
+import { Link } from 'react-router-dom';
 
 const NotesListPage: React.FC = () => {
     const dispatch = useDispatch();
-    const {notes, status} = useSelector((state: RootState) => state.notes);
+    const { notes, status } = useSelector((state: RootState) => state.notes);
     const [visibleNotes, setVisibleNotes] = useState<Note[]>([]);
+    const [allNotesVisible, setAllNotesVisible] = useState<boolean>(false);
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
     const [sortBy, setSortBy] = useState<'titleAsc' | 'titleDesc' | 'idOld' | 'idNew'>('titleAsc');
+
+    const listRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (status === 'idle') {
@@ -42,26 +45,42 @@ const NotesListPage: React.FC = () => {
                     break;
             }
 
-            setVisibleNotes(updatedVisibleNotes.slice(0, 9));
+            if (allNotesVisible) {
+                setVisibleNotes(updatedVisibleNotes);
+            } else {
+                setVisibleNotes(updatedVisibleNotes.slice(0, 9)); // Показывать только первые 9 заметок
+            }
+
+            if (listRef.current) {
+                listRef.current.scrollTop = 0;
+            }
         }
-    }, [notes, sortOrder, sortBy]);
+    }, [notes, sortOrder, sortBy, allNotesVisible]);
 
     const handleLoadMore = () => {
-        const nextBatch = notes.slice(visibleNotes.length, visibleNotes.length + 9);
-        setVisibleNotes((prevNotes) => [...prevNotes, ...nextBatch]);
+        if (notes) {
+            const startIndex = visibleNotes.length;
+            const endIndex = Math.min(startIndex + 9, notes.length);
+            setVisibleNotes((prevNotes) => {
+                const nextBatch = notes.slice(startIndex, endIndex);
+                return [...prevNotes, ...nextBatch];
+            });
+        }
     };
 
     const handleShowAll = () => {
-        setVisibleNotes(notes);
+        setAllNotesVisible(true);
+        setVisibleNotes(notes); // Показать все заметки
     };
 
     const handleSort = (value: string) => {
         setSortBy(value as 'titleAsc' | 'titleDesc' | 'idOld' | 'idNew');
-        setSortOrder('asc'); // По умолчанию сортировка начинается с возрастания при изменении типа сортировки
+        setSortOrder('asc');
+        setAllNotesVisible(false);
     };
 
     return (
-        <Box sx={{padding: '20px'}}>
+        <Box sx={{ padding: '20px' }}>
             <Typography variant="h4" align="center" gutterBottom>
                 Список заміток
             </Typography>
@@ -88,24 +107,26 @@ const NotesListPage: React.FC = () => {
                 </Grid>
             </Grid>
             {status === 'loading' && (
-                <Backdrop sx={{color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1}} open={true}>
-                    <CircularProgress color="inherit"/>
+                <Backdrop sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }} open={true}>
+                    <CircularProgress color="inherit" />
                 </Backdrop>
             )}
             {status === 'failed' && <p>Помилка при завантаженні заміток.</p>}
-            <NoteList notes={visibleNotes}/>
-            <Box sx={{display: 'flex', justifyContent: 'center', marginTop: '20px', gap: '10px'}}>
-                {!notes || (visibleNotes.length < notes.length && (
-                    <Button variant="contained" color="primary" onClick={handleLoadMore}>
-                        Показати ще (+9)
-                    </Button>
-                ))}
-                {visibleNotes.length !== notes?.length && (
+            <div ref={listRef} style={{ overflowY: 'auto', maxHeight: '65vh' }}>
+                <NoteList notes={visibleNotes} />
+            </div>
+            {!allNotesVisible && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', marginTop: '20px', gap: '10px' }}>
+                    {visibleNotes.length < notes?.length && (
+                        <Button variant="contained" color="primary" onClick={handleLoadMore}>
+                            Показати ще (+9)
+                        </Button>
+                    )}
                     <Button variant="contained" color="success" onClick={handleShowAll}>
                         Показати всі
                     </Button>
-                )}
-            </Box>
+                </Box>
+            )}
         </Box>
     );
 };

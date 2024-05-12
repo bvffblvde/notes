@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../app/store';
 import { fetchNotes, Note } from '../features/notes/notesSlice';
@@ -11,11 +11,8 @@ const NotesListPage: React.FC = () => {
     const dispatch = useDispatch();
     const { notes, status } = useSelector((state: RootState) => state.notes);
     const [visibleNotes, setVisibleNotes] = useState<Note[]>([]);
-    const [allNotesVisible, setAllNotesVisible] = useState<boolean>(false);
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
     const [sortBy, setSortBy] = useState<'titleAsc' | 'titleDesc' | 'idOld' | 'idNew'>('titleAsc');
-
-    const listRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (status === 'idle') {
@@ -45,38 +42,13 @@ const NotesListPage: React.FC = () => {
                     break;
             }
 
-            if (allNotesVisible) {
-                setVisibleNotes(updatedVisibleNotes);
-            } else {
-                setVisibleNotes(updatedVisibleNotes.slice(0, 9)); // Показывать только первые 9 заметок
-            }
-
-            if (listRef.current) {
-                listRef.current.scrollTop = 0;
-            }
+            setVisibleNotes(updatedVisibleNotes);
         }
-    }, [notes, sortOrder, sortBy, allNotesVisible]);
-
-    const handleLoadMore = () => {
-        if (notes) {
-            const startIndex = visibleNotes.length;
-            const endIndex = Math.min(startIndex + 9, notes.length);
-            setVisibleNotes((prevNotes) => {
-                const nextBatch = notes.slice(startIndex, endIndex);
-                return [...prevNotes, ...nextBatch];
-            });
-        }
-    };
-
-    const handleShowAll = () => {
-        setAllNotesVisible(true);
-        setVisibleNotes(notes); // Показать все заметки
-    };
+    }, [notes, sortOrder, sortBy]);
 
     const handleSort = (value: string) => {
         setSortBy(value as 'titleAsc' | 'titleDesc' | 'idOld' | 'idNew');
         setSortOrder('asc');
-        setAllNotesVisible(false);
     };
 
     return (
@@ -112,21 +84,9 @@ const NotesListPage: React.FC = () => {
                 </Backdrop>
             )}
             {status === 'failed' && <p>Помилка при завантаженні заміток.</p>}
-            <div ref={listRef} style={{ overflowY: 'auto', maxHeight: '65vh' }}>
+            <div>
                 <NoteList notes={visibleNotes} />
             </div>
-            {!allNotesVisible && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', marginTop: '20px', gap: '10px' }}>
-                    {visibleNotes.length < notes?.length && (
-                        <Button variant="contained" color="primary" onClick={handleLoadMore}>
-                            Показати ще (+9)
-                        </Button>
-                    )}
-                    <Button variant="contained" color="success" onClick={handleShowAll}>
-                        Показати всі
-                    </Button>
-                </Box>
-            )}
         </Box>
     );
 };
